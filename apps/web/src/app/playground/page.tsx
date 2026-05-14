@@ -13,9 +13,10 @@ type Note = {
 type Toast = {
   id: string;
   message: string;
+  type: "success" | "error";
 };
 
-// Helper to generate mock Ed25519 did:key identifiers
+// Helper to generate mock Ed25519 did:key identifiers (for demo purposes only)
 function generateMockDID(): string {
   const randomHex = Array.from({ length: 32 }, () =>
     Math.floor(Math.random() * 16).toString(16)
@@ -43,31 +44,50 @@ export default function PlaygroundPage() {
   const [identityA, setIdentityA] = useState<string>("");
   const [identityB, setIdentityB] = useState<string>("");
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [toastTimeouts, setToastTimeouts] = useState<Map<string, NodeJS.Timeout>>(new Map());
 
-  // Initialize identities on mount
+  // Initialize identities on mount (only once)
   useEffect(() => {
     setIdentityA(generateMockDID());
     setIdentityB(generateMockDID());
   }, []);
 
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      toastTimeouts.forEach((timeout) => clearTimeout(timeout));
+    };
+  }, [toastTimeouts]);
+
   // Show toast notification
-  const showToast = (message: string) => {
+  const showToast = (message: string, type: "success" | "error" = "success") => {
     const id = Math.random().toString(36).substring(7);
-    setToasts((prev) => [...prev, { id, message }]);
+    setToasts((prev) => [...prev, { id, message, type }]);
     
     // Auto-remove toast after 2 seconds
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
+      setToastTimeouts((prev) => {
+        const updated = new Map(prev);
+        updated.delete(id);
+        return updated;
+      });
     }, 2000);
+
+    setToastTimeouts((prev) => new Map(prev).set(id, timeout));
   };
 
   // Copy to clipboard
   const copyToClipboard = async (text: string) => {
+    if (!text.trim()) {
+      showToast("Failed to copy", "error");
+      return;
+    }
     try {
       await navigator.clipboard.writeText(text);
-      showToast("Copied to clipboard!");
+      showToast("Copied to clipboard!", "success");
     } catch {
-      showToast("Failed to copy");
+      showToast("Failed to copy", "error");
     }
   };
 
@@ -166,13 +186,14 @@ export default function PlaygroundPage() {
 
           {/* Identity Display */}
           <div className="bg-blue-50 px-4 py-3 border-b border-blue-100">
-            <div className="text-xs font-semibold text-blue-900 mb-2 uppercase tracking-wide">Identity (Ed25519)</div>
+            <div className="text-xs font-semibold text-blue-900 mb-2 uppercase tracking-wide">Identity (Ed25519 Mock)</div>
             <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-blue-200">
-              <code className="text-xs text-blue-700 font-mono flex-1 truncate">{identityA}</code>
+              <code className="text-xs text-blue-700 font-mono flex-1 truncate">{identityA || "(generating...)"}</code>
               <button
                 onClick={() => copyToClipboard(identityA)}
-                className="ml-2 p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-100 rounded transition-colors flex-shrink-0"
-                title="Copy public key"
+                disabled={!identityA}
+                className="ml-2 p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-100 disabled:text-gray-400 disabled:hover:bg-transparent rounded transition-colors flex-shrink-0"
+                title={identityA ? "Copy public key" : "Loading..."}
                 aria-label="Copy public key"
               >
                 <Copy className="w-4 h-4" />
@@ -241,13 +262,14 @@ export default function PlaygroundPage() {
 
           {/* Identity Display */}
           <div className="bg-purple-50 px-4 py-3 border-b border-purple-100">
-            <div className="text-xs font-semibold text-purple-900 mb-2 uppercase tracking-wide">Identity (Ed25519)</div>
+            <div className="text-xs font-semibold text-purple-900 mb-2 uppercase tracking-wide">Identity (Ed25519 Mock)</div>
             <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-purple-200">
-              <code className="text-xs text-purple-700 font-mono flex-1 truncate">{identityB}</code>
+              <code className="text-xs text-purple-700 font-mono flex-1 truncate">{identityB || "(generating...)"}</code>
               <button
                 onClick={() => copyToClipboard(identityB)}
-                className="ml-2 p-1.5 text-purple-500 hover:text-purple-700 hover:bg-purple-100 rounded transition-colors flex-shrink-0"
-                title="Copy public key"
+                disabled={!identityB}
+                className="ml-2 p-1.5 text-purple-500 hover:text-purple-700 hover:bg-purple-100 disabled:text-gray-400 disabled:hover:bg-transparent rounded transition-colors flex-shrink-0"
+                title={identityB ? "Copy public key" : "Loading..."}
                 aria-label="Copy public key"
               >
                 <Copy className="w-4 h-4" />
@@ -329,9 +351,17 @@ export default function PlaygroundPage() {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className="bg-black text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300 pointer-events-auto"
+            className={`px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-300 pointer-events-auto ${
+              toast.type === "success"
+                ? "bg-black text-white"
+                : "bg-red-100 text-red-900 border border-red-200"
+            }`}
           >
-            <Check className="w-4 h-4 text-green-400" />
+            {toast.type === "success" ? (
+              <Check className="w-4 h-4 text-green-400" />
+            ) : (
+              <span className="text-lg">✕</span>
+            )}
             <span className="text-sm font-medium">{toast.message}</span>
           </div>
         ))}
