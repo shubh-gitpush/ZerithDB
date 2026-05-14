@@ -1,8 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { ArrowLeft, Wifi, WifiOff, Laptop, Save, Database, ArrowRightLeft, Copy, Check } from "lucide-react";
+import {
+  ArrowLeft,
+  Wifi,
+  WifiOff,
+  Laptop,
+  Save,
+  Database,
+  ArrowRightLeft,
+  Copy,
+  Check,
+} from "lucide-react";
 
 type Note = {
   id: string;
@@ -41,40 +51,35 @@ export default function PlaygroundPage() {
   const [syncCount, setSyncCount] = useState(0);
 
   // Identity and toast state
-  const [identityA, setIdentityA] = useState<string>("");
-  const [identityB, setIdentityB] = useState<string>("");
+  const [identityA, setIdentityA] = useState<string>("did:key:loading");
+  const [identityB, setIdentityB] = useState<string>("did:key:loading");
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [toastTimeouts, setToastTimeouts] = useState<Map<string, NodeJS.Timeout>>(new Map());
+  // Use a ref for timeouts to prevent re-renders and cleanup bugs
+  const toastTimeouts = useRef<Set<NodeJS.Timeout>>(new Set());
 
-  // Initialize identities on mount (only once)
+  // Generate identities on mount to avoid hydration mismatch
   useEffect(() => {
     setIdentityA(generateMockDID());
     setIdentityB(generateMockDID());
   }, []);
 
-  // Cleanup timeouts on unmount
+  // Cleanup all timeouts only on component unmount
   useEffect(() => {
     return () => {
-      toastTimeouts.forEach((timeout) => clearTimeout(timeout));
+      toastTimeouts.current.forEach(clearTimeout);
     };
-  }, [toastTimeouts]);
+  }, []);
 
-  // Show toast notification
   const showToast = (message: string, type: "success" | "error" = "success") => {
     const id = Math.random().toString(36).substring(7);
     setToasts((prev) => [...prev, { id, message, type }]);
-    
-    // Auto-remove toast after 2 seconds
+
     const timeout = setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-      setToastTimeouts((prev) => {
-        const updated = new Map(prev);
-        updated.delete(id);
-        return updated;
-      });
+      toastTimeouts.current.delete(timeout);
     }, 2000);
 
-    setToastTimeouts((prev) => new Map(prev).set(id, timeout));
+    toastTimeouts.current.add(timeout);
   };
 
   // Copy to clipboard
@@ -186,9 +191,13 @@ export default function PlaygroundPage() {
 
           {/* Identity Display */}
           <div className="bg-blue-50 px-4 py-3 border-b border-blue-100">
-            <div className="text-xs font-semibold text-blue-900 mb-2 uppercase tracking-wide">Identity (Ed25519 Mock)</div>
+            <div className="text-xs font-semibold text-blue-900 mb-2 uppercase tracking-wide">
+              Identity (Ed25519 Mock)
+            </div>
             <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-blue-200">
-              <code className="text-xs text-blue-700 font-mono flex-1 truncate">{identityA || "(generating...)"}</code>
+              <code className="text-xs text-blue-700 font-mono flex-1 truncate">
+                {identityA || "(generating...)"}
+              </code>
               <button
                 onClick={() => copyToClipboard(identityA)}
                 disabled={!identityA}
@@ -262,9 +271,13 @@ export default function PlaygroundPage() {
 
           {/* Identity Display */}
           <div className="bg-purple-50 px-4 py-3 border-b border-purple-100">
-            <div className="text-xs font-semibold text-purple-900 mb-2 uppercase tracking-wide">Identity (Ed25519 Mock)</div>
+            <div className="text-xs font-semibold text-purple-900 mb-2 uppercase tracking-wide">
+              Identity (Ed25519 Mock)
+            </div>
             <div className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border border-purple-200">
-              <code className="text-xs text-purple-700 font-mono flex-1 truncate">{identityB || "(generating...)"}</code>
+              <code className="text-xs text-purple-700 font-mono flex-1 truncate">
+                {identityB || "(generating...)"}
+              </code>
               <button
                 onClick={() => copyToClipboard(identityB)}
                 disabled={!identityB}
@@ -347,7 +360,12 @@ export default function PlaygroundPage() {
       </div>
 
       {/* Toast Notifications */}
-      <div className="fixed bottom-6 right-6 flex flex-col gap-2 pointer-events-none">
+      <div
+        className="fixed bottom-6 right-6 flex flex-col gap-2 pointer-events-none"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
         {toasts.map((toast) => (
           <div
             key={toast.id}
