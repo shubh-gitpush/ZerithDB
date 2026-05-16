@@ -26,12 +26,15 @@ type Toast = {
   type: "success" | "error";
 };
 
-// Helper to generate mock Ed25519 did:key identifiers (for demo purposes only)
-function generateMockDID(): string {
-  const randomHex = Array.from({ length: 32 }, () =>
-    Math.floor(Math.random() * 16).toString(16)
+// Helper to generate mock Ed25519 did:key identifiers
+async function generateMockDID(): Promise<string> {
+  // Generate a random 64-character hex string as mock Ed25519 public key
+  const mockPublicKey = Array.from({ length: 32 }, () =>
+    Math.floor(Math.random() * 256)
+      .toString(16)
+      .padStart(2, "0")
   ).join("");
-  return `did:key:z6Mk${randomHex}`;
+  return `did:key:z${mockPublicKey}`;
 }
 
 export default function PlaygroundPage() {
@@ -51,22 +54,27 @@ export default function PlaygroundPage() {
   const [syncCount, setSyncCount] = useState(0);
 
   // Identity and toast state
-  const [identityA, setIdentityA] = useState<string>("did:key:loading");
-  const [identityB, setIdentityB] = useState<string>("did:key:loading");
+  const [identityA, setIdentityA] = useState<string>("");
+  const [identityB, setIdentityB] = useState<string>("");
   const [toasts, setToasts] = useState<Toast[]>([]);
   // Use a ref for timeouts to prevent re-renders and cleanup bugs
   const toastTimeouts = useRef<Set<NodeJS.Timeout>>(new Set());
 
   // Generate identities on mount to avoid hydration mismatch
   useEffect(() => {
-    setIdentityA(generateMockDID());
-    setIdentityB(generateMockDID());
+    (async () => {
+      const didA = await generateMockDID();
+      const didB = await generateMockDID();
+      setIdentityA(didA);
+      setIdentityB(didB);
+    })();
   }, []);
 
   // Cleanup all timeouts only on component unmount
   useEffect(() => {
+    const timeouts = toastTimeouts.current;
     return () => {
-      toastTimeouts.current.forEach(clearTimeout);
+      timeouts.forEach(clearTimeout);
     };
   }, []);
 
