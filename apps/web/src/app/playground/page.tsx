@@ -211,7 +211,7 @@ export default function PlaygroundPage() {
                 disabled={!identityA}
                 className="ml-2 p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-100 disabled:text-gray-400 disabled:hover:bg-transparent rounded transition-colors flex-shrink-0"
                 title={identityA ? "Copy public key" : "Loading..."}
-                aria-label="Copy public key"
+                aria-label="Copy Browser A public key"
               >
                 <Copy className="w-4 h-4" />
               </button>
@@ -291,7 +291,7 @@ export default function PlaygroundPage() {
                 disabled={!identityB}
                 className="ml-2 p-1.5 text-purple-500 hover:text-purple-700 hover:bg-purple-100 disabled:text-gray-400 disabled:hover:bg-transparent rounded transition-colors flex-shrink-0"
                 title={identityB ? "Copy public key" : "Loading..."}
-                aria-label="Copy public key"
+                aria-label="Copy Browser B public key"
               >
                 <Copy className="w-4 h-4" />
               </button>
